@@ -34,6 +34,7 @@ struct copyMemoryApp: App {
     var body: some Scene {
         MenuBarExtra("copyMemory", systemImage: "doc.on.clipboard") {
             ClipboardMenuView()
+                .environment(services.store)
         }
         .menuBarExtraStyle(.window)
     }

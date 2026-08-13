@@ -9,21 +9,23 @@ import AppKit
 import SwiftUI
 
 struct ClipboardMenuView: View {
-    @State private var searchQuery = ""
+    @Environment(ClipboardStore.self) private var store
+
     private let panelWidth: CGFloat = 320
     private let listHeight: CGFloat = 280
 
     var body: some View {
+        @Bindable var store = store
+
         VStack(spacing: 0) {
-            TextField("Buscar…", text: $searchQuery)
+            TextField("Buscar…", text: $store.searchQuery)
                 .textFieldStyle(.roundedBorder)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
 
             Divider()
 
-            EmptyClipboardView(mode: searchQuery.isEmpty ? .noHistory : .noResults)
-                .frame(height: listHeight)
+            content
 
             Divider()
 
@@ -38,5 +40,23 @@ struct ClipboardMenuView: View {
             .padding(.vertical, 8)
         }
         .frame(width: panelWidth)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if store.filteredItems.isEmpty {
+            EmptyClipboardView(mode: emptyMode)
+                .frame(height: listHeight)
+        } else {
+            List(store.filteredItems) { item in
+                ClipboardItemRow(item: item)
+            }
+            .listStyle(.plain)
+            .frame(height: listHeight)
+        }
+    }
+
+    private var emptyMode: EmptyClipboardMode {
+        store.items.isEmpty ? .noHistory : .noResults
     }
 }
