@@ -20,6 +20,7 @@ struct ClipboardMenuView: View {
         VStack(spacing: 0) {
             TextField("Buscar…", text: $store.searchQuery)
                 .textFieldStyle(.roundedBorder)
+                .font(.callout)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
 

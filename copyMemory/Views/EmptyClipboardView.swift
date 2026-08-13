@@ -17,6 +17,8 @@ struct EmptyClipboardView: View {
 
     var body: some View {
         Text(title)
+            .font(.callout)
+            .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity, minHeight: 120)
             .padding(.horizontal, 16)

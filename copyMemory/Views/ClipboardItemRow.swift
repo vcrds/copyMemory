@@ -29,6 +29,7 @@ struct ClipboardItemRow: View {
 
     private var textRow: some View {
         Text(displayText)
+            .font(.callout)
             .lineLimit(2)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -41,6 +42,8 @@ struct ClipboardItemRow: View {
                 .frame(width: thumbnailSide, height: thumbnailSide)
 
             Text(imageLabel)
+                .font(.callout)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
 
             Spacer(minLength: 0)
