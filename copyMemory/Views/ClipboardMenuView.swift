@@ -11,6 +11,7 @@ import SwiftUI
 struct ClipboardMenuView: View {
     @Environment(ClipboardStore.self) private var store
     @State private var menuWindow: NSWindow?
+    @State private var didSelect = false
 
     private let panelWidth: CGFloat = 320
     private let listHeight: CGFloat = 280
@@ -45,6 +46,9 @@ struct ClipboardMenuView: View {
         .background {
             MenuBarExtraWindowReader { menuWindow = $0 }
         }
+        .onAppear {
+            didSelect = false
+        }
     }
 
     @ViewBuilder
@@ -54,7 +58,14 @@ struct ClipboardMenuView: View {
                 .frame(height: listHeight)
         } else {
             List(store.filteredItems) { item in
-                ClipboardItemRow(item: item)
+                Button {
+                    selectAndDismiss(item)
+                } label: {
+                    ClipboardItemRow(item: item)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
             .listStyle(.plain)
             .frame(height: listHeight)
@@ -63,6 +74,13 @@ struct ClipboardMenuView: View {
 
     private var emptyMode: EmptyClipboardMode {
         store.items.isEmpty ? .noHistory : .noResults
+    }
+
+    private func selectAndDismiss(_ item: ClipboardItem) {
+        guard !didSelect else { return }
+        didSelect = true
+        store.select(item)
+        MenuBarExtraDismisser.dismiss(hostWindow: menuWindow)
     }
 }
 
