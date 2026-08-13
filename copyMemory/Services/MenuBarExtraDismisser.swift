@@ -8,7 +8,7 @@
 import AppKit
 import SwiftUI
 
-/// Fecha o painel do `MenuBarExtra`.
+/// Fecha ou abre o painel do `MenuBarExtra`.
 /// SwiftUI ainda não expõe `isPresented` estável (Xcode 26); este bridge usa só APIs públicas.
 enum MenuBarExtraDismisser {
     @MainActor
@@ -24,6 +24,29 @@ enum MenuBarExtraDismisser {
             window?.resignKey()
             window?.orderOut(nil)
             statusBarButton()?.highlight(false)
+        }
+    }
+
+    /// Abre o painel com o app em background (atalho global). Não cola no app em foco.
+    @MainActor
+    static func present() {
+        NSApp.activate(ignoringOtherApps: true)
+
+        if let panel = visibleMenuPanel() {
+            panel.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        statusBarButton()?.performClick(nil)
+    }
+
+    @MainActor
+    private static func visibleMenuPanel() -> NSWindow? {
+        NSApp.windows.first { window in
+            window.isVisible
+                && window.canBecomeKey
+                && window.frame.width >= 280
+                && window.frame.height >= 120
         }
     }
 

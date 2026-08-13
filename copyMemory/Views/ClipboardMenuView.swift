@@ -32,31 +32,7 @@ struct ClipboardMenuView: View {
 
             Divider()
 
-            HStack {
-                Button("Limpar histórico") {
-                    isConfirmingClear = true
-                }
-                .disabled(store.items.isEmpty)
-
-                Spacer()
-
-                Button("Sair") {
-                    NSApplication.shared.terminate(nil)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .confirmationDialog(
-                "Limpar todo o histórico?",
-                isPresented: $isConfirmingClear
-            ) {
-                Button("Limpar", role: .destructive) {
-                    store.clear()
-                }
-                Button("Cancelar", role: .cancel) {}
-            } message: {
-                Text("Esta ação vale só para a sessão atual.")
-            }
+            footer
         }
         .frame(width: panelWidth)
         .background {
@@ -126,6 +102,41 @@ struct ClipboardMenuView: View {
 
     private var emptyMode: EmptyClipboardMode {
         store.items.isEmpty ? .noHistory : .noResults
+    }
+
+    private var footer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Button("Limpar histórico") {
+                    isConfirmingClear = true
+                }
+                .disabled(store.items.isEmpty)
+
+                Spacer()
+
+                Button("Sair") {
+                    NSApplication.shared.terminate(nil)
+                }
+            }
+
+            Text("Atalho \(HotKeyService.defaultShortcutDisplayName)")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .confirmationDialog(
+            "Limpar todo o histórico?",
+            isPresented: $isConfirmingClear
+        ) {
+            Button("Limpar", role: .destructive) {
+                store.clear()
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Esta ação vale só para a sessão atual.")
+        }
     }
 
     private func historyRow(for item: ClipboardItem) -> some View {

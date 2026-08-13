@@ -12,6 +12,7 @@ import SwiftUI
 final class AppServices {
     let store = ClipboardStore()
     let monitor = ClipboardMonitor()
+    let hotKey = HotKeyService()
     private var monitorSubscription: AnyCancellable?
 
     init() {
@@ -20,10 +21,16 @@ final class AppServices {
             store.insert(item)
         }
         monitor.start()
+        hotKey.register {
+            Task { @MainActor in
+                MenuBarExtraDismisser.present()
+            }
+        }
     }
 
     deinit {
         monitorSubscription?.cancel()
+        hotKey.unregister()
     }
 }
 
