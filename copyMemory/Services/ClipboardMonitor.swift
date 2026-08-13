@@ -28,6 +28,8 @@ final class ClipboardMonitor {
         .tiff,
     ]
 
+    private static let supportedTypes: [NSPasteboard.PasteboardType] = stringTypes + imageTypes
+
     init() {
         lastChangeCount = NSPasteboard.general.changeCount
     }
@@ -62,11 +64,24 @@ final class ClipboardMonitor {
     }
 
     func captureItem(from pasteboard: NSPasteboard) -> ClipboardItem? {
+        guard let types = pasteboard.types, !types.isEmpty else { return nil }
+        guard pasteboard.availableType(from: Self.supportedTypes) != nil else { return nil }
+
         if let imageItem = captureImageItem(from: pasteboard) {
             return imageItem
         }
 
+        if isRTFOnly(from: pasteboard) {
+            return nil
+        }
+
         return captureTextItem(from: pasteboard)
+    }
+
+    private func isRTFOnly(from pasteboard: NSPasteboard) -> Bool {
+        let hasRichText = pasteboard.availableType(from: [.rtf, .rtfd, .html]) != nil
+        let hasPlainString = readString(from: pasteboard) != nil
+        return hasRichText && !hasPlainString
     }
 
     private func captureTextItem(from pasteboard: NSPasteboard) -> ClipboardItem? {
