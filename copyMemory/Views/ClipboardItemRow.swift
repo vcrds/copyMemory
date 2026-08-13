@@ -89,6 +89,7 @@ struct ClipboardItemRow: View {
     }
 }
 
+#if DEBUG
 #Preview("Texto") {
     List {
         ClipboardItemRow(item: ClipboardItemPreviewFactory.text("Texto curto copiado"))
@@ -106,7 +107,6 @@ struct ClipboardItemRow: View {
     .frame(width: 320, height: 80)
 }
 
-#if DEBUG
 enum ClipboardItemPreviewFactory {
     static func text(_ value: String) -> ClipboardItem {
         ClipboardItem(

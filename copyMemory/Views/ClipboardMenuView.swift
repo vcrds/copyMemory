@@ -218,6 +218,7 @@ struct ClipboardMenuView: View {
     }
 }
 
+#if DEBUG
 #Preview("Lista com itens") {
     ClipboardMenuView()
         .environment(ClipboardStore.previewPopulated())
@@ -229,8 +230,11 @@ struct ClipboardMenuView: View {
 }
 
 #Preview("Busca sem resultados") {
-    let store = ClipboardStore.previewPopulated()
-    store.searchQuery = "zzzz"
-    return ClipboardMenuView()
-        .environment(store)
+    ClipboardMenuView()
+        .environment({
+            let store = ClipboardStore.previewPopulated()
+            store.searchQuery = "zzzz"
+            return store
+        }())
 }
+#endif
