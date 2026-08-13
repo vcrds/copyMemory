@@ -8,12 +8,12 @@
 import CryptoKit
 import Foundation
 
-enum ClipboardContentType: String, Equatable, Codable {
+nonisolated enum ClipboardContentType: String, Equatable, Codable, Sendable {
     case text
     case image
 }
 
-struct ClipboardItem: Identifiable, Equatable, Codable {
+nonisolated struct ClipboardItem: Identifiable, Equatable, Codable, Sendable {
     let id: UUID
     let type: ClipboardContentType
     let text: String?
@@ -23,7 +23,7 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
     let contentHash: String
 }
 
-enum ClipboardItemContentHash {
+nonisolated enum ClipboardItemContentHash {
     static func forText(_ text: String) -> String {
         sha256Hex(of: Data(text.utf8))
     }

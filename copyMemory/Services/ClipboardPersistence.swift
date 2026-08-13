@@ -57,6 +57,6 @@ nonisolated struct ClipboardPersistence: Sendable {
     }
 }
 
-private struct PersistedClipboardHistory: Codable {
+nonisolated private struct PersistedClipboardHistory: Codable, Sendable {
     var items: [ClipboardItem]
 }
