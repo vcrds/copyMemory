@@ -22,7 +22,7 @@ struct ClipboardMenuView: View {
 
             Divider()
 
-            Color.clear
+            EmptyClipboardView(mode: searchQuery.isEmpty ? .noHistory : .noResults)
                 .frame(height: listHeight)
 
             Divider()
