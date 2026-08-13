@@ -16,6 +16,10 @@ final class ClipboardStore {
     private(set) var items: [ClipboardItem] = []
 
     func insert(_ item: ClipboardItem) {
+        if let latest = items.first, latest.contentHash == item.contentHash {
+            return
+        }
+
         items.insert(item, at: 0)
 
         if items.count > Self.maxItems {
