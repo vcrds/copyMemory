@@ -5,34 +5,123 @@
 //  Created by Vinícius Cardoso on 12/08/26.
 //
 
+import AppKit
 import XCTest
 @testable import copyMemory
 
-final class copyMemoryTests: XCTestCase {
-
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+@MainActor
+final class ClipboardItemContentHashTests: XCTestCase {
+    func testSameTextProducesSameHash() {
+        XCTAssertEqual(
+            ClipboardItemContentHash.forText("abc"),
+            ClipboardItemContentHash.forText("abc")
+        )
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+    func testDifferentTextProducesDifferentHash() {
+        XCTAssertNotEqual(
+            ClipboardItemContentHash.forText("abc"),
+            ClipboardItemContentHash.forText("xyz")
+        )
     }
 
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
-        // XCTest Documentation
-        // https://developer.apple.com/documentation/xctest
+    func testSameImageDataProducesSameHash() {
+        let data = Data([0x01, 0x02, 0x03])
+        XCTAssertEqual(
+            ClipboardItemContentHash.forImageData(data),
+            ClipboardItemContentHash.forImageData(data)
+        )
     }
 
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
+    func testDifferentImageDataProducesDifferentHash() {
+        XCTAssertNotEqual(
+            ClipboardItemContentHash.forImageData(Data([0x01, 0x02])),
+            ClipboardItemContentHash.forImageData(Data([0x03, 0x04]))
+        )
+    }
+}
+
+@MainActor
+final class ClipboardStoreTests: XCTestCase {
+    func testConsecutiveDedupeKeepsSingleItem() {
+        let store = ClipboardStore()
+        let item = makeTextItem("duplicate")
+
+        store.insert(item)
+        store.insert(makeTextItem("duplicate"))
+
+        XCTAssertEqual(store.items.count, 1)
+        XCTAssertEqual(store.items.first?.text, "duplicate")
+    }
+
+    func testTrimRemovesOldestItemAtMaxCapacity() {
+        let store = ClipboardStore()
+        let oldest = makeTextItem("item-0")
+
+        store.insert(oldest)
+        for index in 1...ClipboardStore.maxItems {
+            store.insert(makeTextItem("item-\(index)"))
         }
+
+        XCTAssertEqual(store.items.count, ClipboardStore.maxItems)
+        XCTAssertNil(store.items.first { $0.text == "item-0" })
+        XCTAssertEqual(store.items.first?.text, "item-\(ClipboardStore.maxItems)")
+    }
+}
+
+@MainActor
+final class ClipboardMonitorTests: XCTestCase {
+    func testMixedContentPrefersImage() throws {
+        let monitor = ClipboardMonitor()
+        let pasteboard = NSPasteboard.general
+        let pngData = try makeMinimalPNGData()
+
+        pasteboard.clearContents()
+        pasteboard.setString("caption", forType: .string)
+        XCTAssertTrue(pasteboard.setData(pngData, forType: .png))
+
+        let item = monitor.captureItem(from: pasteboard)
+
+        XCTAssertEqual(item?.type, .image)
+        XCTAssertNotNil(item?.imageData)
+        XCTAssertNotNil(item?.thumbnail)
+        XCTAssertNil(item?.text)
+    }
+}
+
+private func makeTextItem(_ text: String) -> ClipboardItem {
+    ClipboardItem(
+        id: UUID(),
+        type: .text,
+        text: text,
+        imageData: nil,
+        thumbnail: nil,
+        createdAt: Date(),
+        contentHash: ClipboardItemContentHash.forText(text)
+    )
+}
+
+private func makeMinimalPNGData() throws -> Data {
+    guard let representation = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: 1,
+        pixelsHigh: 1,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ) else {
+        throw NSError(domain: "copyMemoryTests", code: 1)
     }
 
+    representation.setColor(.red, atX: 0, y: 0)
+
+    guard let pngData = representation.representation(using: .png, properties: [:]) else {
+        throw NSError(domain: "copyMemoryTests", code: 2)
+    }
+
+    return pngData
 }
