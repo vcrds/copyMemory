@@ -5,6 +5,7 @@
 //  Created by Vinícius Cardoso on 12/08/26.
 //
 
+import AppKit
 import Foundation
 import Observation
 
@@ -53,6 +54,39 @@ final class ClipboardStore {
 
         if items.count > Self.maxItems {
             items.removeLast(items.count - Self.maxItems)
+        }
+    }
+
+    func select(_ item: ClipboardItem) {
+        guard canWrite(item) else { return }
+        Self.writeToPasteboard(item)
+    }
+
+    private func canWrite(_ item: ClipboardItem) -> Bool {
+        switch item.type {
+        case .text:
+            return item.text != nil
+        case .image:
+            return item.imageData != nil
+        }
+    }
+
+    private static func writeToPasteboard(_ item: ClipboardItem) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+
+        switch item.type {
+        case .text:
+            guard let text = item.text else { return }
+            pasteboard.setString(text, forType: .string)
+
+        case .image:
+            guard let imageData = item.imageData else { return }
+            if let image = NSImage(data: imageData) {
+                pasteboard.writeObjects([image])
+            } else {
+                pasteboard.setData(imageData, forType: .png)
+            }
         }
     }
 }

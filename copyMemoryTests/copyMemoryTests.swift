@@ -67,6 +67,35 @@ final class ClipboardStoreTests: XCTestCase {
         XCTAssertNil(store.items.first { $0.text == "item-0" })
         XCTAssertEqual(store.items.first?.text, "item-\(ClipboardStore.maxItems)")
     }
+
+    func testSelectTextWritesStringToPasteboard() {
+        let store = ClipboardStore()
+        let item = makeTextItem("hello-select")
+        store.insert(item)
+        store.select(item)
+
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "hello-select")
+        XCTAssertEqual(store.items.count, 1)
+    }
+
+    func testSelectImageWritesImageToPasteboard() throws {
+        let store = ClipboardStore()
+        let pngData = try makeMinimalPNGData()
+        let item = ClipboardItem(
+            id: UUID(),
+            type: .image,
+            text: nil,
+            imageData: pngData,
+            thumbnail: pngData,
+            createdAt: Date(),
+            contentHash: ClipboardItemContentHash.forImageData(pngData)
+        )
+        store.insert(item)
+        store.select(item)
+
+        XCTAssertTrue(NSPasteboard.general.canReadObject(forClasses: [NSImage.self], options: nil))
+        XCTAssertEqual(store.items.count, 1)
+    }
 }
 
 @MainActor
