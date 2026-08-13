@@ -13,15 +13,42 @@ import Observation
 @MainActor
 final class ClipboardStore {
     static let maxItems = 50
+    static let persistenceFlagKey = "clipboardPersistsAcrossLaunches"
 
     private(set) var items: [ClipboardItem] = []
     private(set) var isWritingOwnContent = false
     var searchQuery = ""
 
-    private weak var monitor: ClipboardMonitor?
+    var persistsAcrossLaunches: Bool {
+        didSet {
+            guard oldValue != persistsAcrossLaunches else { return }
+            userDefaults.set(persistsAcrossLaunches, forKey: Self.persistenceFlagKey)
+            if persistsAcrossLaunches {
+                persistIfNeeded()
+            } else {
+                persistence.wipe()
+            }
+        }
+    }
 
-    func attach(monitor: ClipboardMonitor) {
-        self.monitor = monitor
+    private weak var monitor: ClipboardMonitor?
+    private let persistence: ClipboardPersistence
+    private let userDefaults: UserDefaults
+
+    init(
+        persistence: ClipboardPersistence = ClipboardPersistence(),
+        userDefaults: UserDefaults = .standard
+    ) {
+        self.persistence = persistence
+        self.userDefaults = userDefaults
+        self.persistsAcrossLaunches = userDefaults.bool(forKey: Self.persistenceFlagKey)
+
+        if persistsAcrossLaunches {
+            items = persistence.load()
+            if items.count > Self.maxItems {
+                items = Array(items.prefix(Self.maxItems))
+            }
+        }
     }
 
     var filteredItems: [ClipboardItem] {
@@ -32,6 +59,10 @@ final class ClipboardStore {
             guard let text = item.text, !text.isEmpty else { return false }
             return text.range(of: query, options: .caseInsensitive) != nil
         }
+    }
+
+    func attach(monitor: ClipboardMonitor) {
+        self.monitor = monitor
     }
 
     func beginOwnContentWrite() {
@@ -55,14 +86,18 @@ final class ClipboardStore {
         if items.count > Self.maxItems {
             items.removeLast(items.count - Self.maxItems)
         }
+
+        persistIfNeeded()
     }
 
     func remove(_ item: ClipboardItem) {
         items.removeAll { $0.id == item.id }
+        persistIfNeeded()
     }
 
     func clear() {
         items.removeAll()
+        persistIfNeeded()
     }
 
     func select(_ item: ClipboardItem) {
@@ -71,6 +106,11 @@ final class ClipboardStore {
         beginOwnContentWrite()
         Self.writeToPasteboard(item)
         endOwnContentWrite()
+    }
+
+    private func persistIfNeeded() {
+        guard persistsAcrossLaunches else { return }
+        persistence.save(items)
     }
 
     private func canWrite(_ item: ClipboardItem) -> Bool {
@@ -113,8 +153,13 @@ extension ClipboardStore {
     }
 
     static func isolatedPreviewStore() -> ClipboardStore {
-        ClipboardStore()
+        ClipboardStore(
+            persistence: ClipboardPersistence(
+                directoryURL: FileManager.default.temporaryDirectory
+                    .appendingPathComponent("copyMemory-preview-\(UUID().uuidString)", isDirectory: true)
+            ),
+            userDefaults: UserDefaults(suiteName: "copyMemory.preview.\(UUID().uuidString)") ?? .standard
+        )
     }
 }
 #endif
-

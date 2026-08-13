@@ -8,12 +8,12 @@
 import CryptoKit
 import Foundation
 
-enum ClipboardContentType: String, Equatable {
+enum ClipboardContentType: String, Equatable, Codable {
     case text
     case image
 }
 
-struct ClipboardItem: Identifiable, Equatable {
+struct ClipboardItem: Identifiable, Equatable, Codable {
     let id: UUID
     let type: ClipboardContentType
     let text: String?

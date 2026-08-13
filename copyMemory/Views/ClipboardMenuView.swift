@@ -105,7 +105,14 @@ struct ClipboardMenuView: View {
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        @Bindable var store = store
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Toggle("Manter histórico ao sair", isOn: $store.persistsAcrossLaunches)
+                .toggleStyle(.checkbox)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             HStack {
                 Button("Limpar histórico") {
                     isConfirmingClear = true
@@ -135,7 +142,11 @@ struct ClipboardMenuView: View {
             }
             Button("Cancelar", role: .cancel) {}
         } message: {
-            Text("Esta ação vale só para a sessão atual.")
+            Text(
+                store.persistsAcrossLaunches
+                    ? "Os itens salvos neste Mac também serão apagados."
+                    : "Esta ação vale só para a sessão atual."
+            )
         }
     }
 

@@ -45,7 +45,7 @@ final class ClipboardItemContentHashTests: XCTestCase {
 @MainActor
 final class ClipboardStoreTests: XCTestCase {
     func testConsecutiveDedupeKeepsSingleItem() {
-        let store = ClipboardStore()
+        let store = makeIsolatedStore()
         let item = makeTextItem("duplicate")
 
         store.insert(item)
@@ -56,7 +56,7 @@ final class ClipboardStoreTests: XCTestCase {
     }
 
     func testTrimRemovesOldestItemAtMaxCapacity() {
-        let store = ClipboardStore()
+        let store = makeIsolatedStore()
         let oldest = makeTextItem("item-0")
 
         store.insert(oldest)
@@ -70,7 +70,7 @@ final class ClipboardStoreTests: XCTestCase {
     }
 
     func testSelectTextWritesStringToPasteboard() {
-        let store = ClipboardStore()
+        let store = makeIsolatedStore()
         let monitor = ClipboardMonitor()
         store.attach(monitor: monitor)
 
@@ -85,7 +85,7 @@ final class ClipboardStoreTests: XCTestCase {
     }
 
     func testSelectImageWritesImageToPasteboard() throws {
-        let store = ClipboardStore()
+        let store = makeIsolatedStore()
         let monitor = ClipboardMonitor()
         store.attach(monitor: monitor)
         let pngData = try makeMinimalPNGData()
@@ -106,7 +106,7 @@ final class ClipboardStoreTests: XCTestCase {
     }
 
     func testSimulatedOwnWriteDoesNotInsert() {
-        let store = ClipboardStore()
+        let store = makeIsolatedStore()
         let monitor = ClipboardMonitor()
         store.attach(monitor: monitor)
 
@@ -122,7 +122,7 @@ final class ClipboardStoreTests: XCTestCase {
     }
 
     func testSelectDoesNotDuplicateHistoryAfterPoll() async throws {
-        let store = ClipboardStore()
+        let store = makeIsolatedStore()
         let monitor = ClipboardMonitor()
         store.attach(monitor: monitor)
 
@@ -151,7 +151,7 @@ final class ClipboardStoreTests: XCTestCase {
     }
 
     func testRemoveItemKeepsRemainingOrder() {
-        let store = ClipboardStore()
+        let store = makeIsolatedStore()
         let first = makeTextItem("first")
         let second = makeTextItem("second")
         let third = makeTextItem("third")
@@ -165,7 +165,7 @@ final class ClipboardStoreTests: XCTestCase {
     }
 
     func testClearEmptiesHistory() {
-        let store = ClipboardStore()
+        let store = makeIsolatedStore()
         store.insert(makeTextItem("keep-me-not"))
         store.insert(makeTextItem("also-gone"))
 
@@ -173,6 +173,53 @@ final class ClipboardStoreTests: XCTestCase {
 
         XCTAssertTrue(store.items.isEmpty)
         XCTAssertTrue(store.filteredItems.isEmpty)
+    }
+
+    func testPersistenceOffDoesNotWriteHistoryFile() {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cm-persist-off-\(UUID().uuidString)", isDirectory: true)
+        let persistence = ClipboardPersistence(directoryURL: directory)
+        let defaults = UserDefaults(suiteName: "cm-persist-off-\(UUID().uuidString)")!
+
+        let store = ClipboardStore(persistence: persistence, userDefaults: defaults)
+        store.insert(makeTextItem("ephemeral"))
+
+        XCTAssertFalse(store.persistsAcrossLaunches)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: persistence.fileURL.path))
+    }
+
+    func testPersistenceOnSurvivesReload() {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cm-persist-on-\(UUID().uuidString)", isDirectory: true)
+        let persistence = ClipboardPersistence(directoryURL: directory)
+        let suiteName = "cm-persist-on-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+
+        let store = ClipboardStore(persistence: persistence, userDefaults: defaults)
+        store.persistsAcrossLaunches = true
+        store.insert(makeTextItem("survives"))
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: persistence.fileURL.path))
+
+        let reloaded = ClipboardStore(persistence: persistence, userDefaults: defaults)
+        XCTAssertEqual(reloaded.items.first?.text, "survives")
+        XCTAssertTrue(reloaded.persistsAcrossLaunches)
+    }
+
+    func testDisablingPersistenceWipesHistoryFile() {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cm-persist-wipe-\(UUID().uuidString)", isDirectory: true)
+        let persistence = ClipboardPersistence(directoryURL: directory)
+        let defaults = UserDefaults(suiteName: "cm-persist-wipe-\(UUID().uuidString)")!
+
+        let store = ClipboardStore(persistence: persistence, userDefaults: defaults)
+        store.persistsAcrossLaunches = true
+        store.insert(makeTextItem("secret"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: persistence.fileURL.path))
+
+        store.persistsAcrossLaunches = false
+        XCTAssertFalse(FileManager.default.fileExists(atPath: persistence.fileURL.path))
+        XCTAssertEqual(store.items.first?.text, "secret")
     }
 }
 
@@ -221,6 +268,16 @@ final class ClipboardMonitorTests: XCTestCase {
         monitor.isWritingOwnContent = false
         monitor.syncChangeCount()
     }
+}
+
+@MainActor
+private func makeIsolatedStore() -> ClipboardStore {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("cm-store-\(UUID().uuidString)", isDirectory: true)
+    return ClipboardStore(
+        persistence: ClipboardPersistence(directoryURL: directory),
+        userDefaults: UserDefaults(suiteName: "cm-store-\(UUID().uuidString)")!
+    )
 }
 
 private func makeTextItem(_ text: String) -> ClipboardItem {
