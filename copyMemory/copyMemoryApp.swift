@@ -10,8 +10,9 @@ import SwiftUI
 @main
 struct copyMemoryApp: App {
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        MenuBarExtra("copyMemory", systemImage: "doc.on.clipboard") {
+            ClipboardMenuView()
         }
+        .menuBarExtraStyle(.window)
     }
 }
