@@ -15,11 +15,22 @@ final class ClipboardStore {
 
     private(set) var items: [ClipboardItem] = []
     private(set) var isWritingOwnContent = false
+    var searchQuery = ""
 
     private weak var monitor: ClipboardMonitor?
 
     func attach(monitor: ClipboardMonitor) {
         self.monitor = monitor
+    }
+
+    var filteredItems: [ClipboardItem] {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return items }
+
+        return items.filter { item in
+            guard let text = item.text, !text.isEmpty else { return false }
+            return text.range(of: query, options: .caseInsensitive) != nil
+        }
     }
 
     func beginOwnContentWrite() {
