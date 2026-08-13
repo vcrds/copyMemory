@@ -10,6 +10,7 @@ import SwiftUI
 
 struct ClipboardMenuView: View {
     @Environment(ClipboardStore.self) private var store
+    @State private var menuWindow: NSWindow?
 
     private let panelWidth: CGFloat = 320
     private let listHeight: CGFloat = 280
@@ -41,6 +42,9 @@ struct ClipboardMenuView: View {
             .padding(.vertical, 8)
         }
         .frame(width: panelWidth)
+        .background {
+            MenuBarExtraWindowReader { menuWindow = $0 }
+        }
     }
 
     @ViewBuilder
