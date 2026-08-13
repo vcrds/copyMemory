@@ -81,8 +81,10 @@ struct ClipboardMenuView: View {
     @ViewBuilder
     private var content: some View {
         if store.filteredItems.isEmpty {
-            EmptyClipboardView(mode: emptyMode)
-                .frame(height: listHeight)
+            EmptyClipboardView(
+                mode: emptyMode,
+                persistsAcrossLaunches: store.persistsAcrossLaunches
+            )
         } else {
             ScrollViewReader { proxy in
                 List(store.filteredItems) { item in
