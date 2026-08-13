@@ -149,6 +149,20 @@ final class ClipboardStoreTests: XCTestCase {
         XCTAssertFalse(store.isWritingOwnContent)
         XCTAssertFalse(monitor.isWritingOwnContent)
     }
+
+    func testRemoveItemKeepsRemainingOrder() {
+        let store = ClipboardStore()
+        let first = makeTextItem("first")
+        let second = makeTextItem("second")
+        let third = makeTextItem("third")
+
+        store.insert(first)
+        store.insert(second)
+        store.insert(third)
+        store.remove(second)
+
+        XCTAssertEqual(store.items.map(\.text), ["third", "first"])
+    }
 }
 
 @MainActor

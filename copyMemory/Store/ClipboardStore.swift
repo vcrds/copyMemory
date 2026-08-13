@@ -57,6 +57,10 @@ final class ClipboardStore {
         }
     }
 
+    func remove(_ item: ClipboardItem) {
+        items.removeAll { $0.id == item.id }
+    }
+
     func select(_ item: ClipboardItem) {
         guard canWrite(item) else { return }
 

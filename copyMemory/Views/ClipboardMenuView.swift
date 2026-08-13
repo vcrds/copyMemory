@@ -14,6 +14,7 @@ struct ClipboardMenuView: View {
     @State private var selectedItemID: ClipboardItem.ID?
     @State private var menuWindow: NSWindow?
     @State private var didSelect = false
+    @State private var hoveredItemID: ClipboardItem.ID?
 
     private let panelWidth: CGFloat = 320
     private let listHeight: CGFloat = 280
@@ -92,16 +93,9 @@ struct ClipboardMenuView: View {
         } else {
             ScrollViewReader { proxy in
                 List(store.filteredItems) { item in
-                    Button {
-                        selectAndDismiss(item)
-                    } label: {
-                        ClipboardItemRow(item: item)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .listRowBackground(rowBackground(for: item))
-                    .id(item.id)
+                    historyRow(for: item)
+                        .listRowBackground(rowBackground(for: item))
+                        .id(item.id)
                 }
                 .listStyle(.plain)
                 .frame(height: listHeight)
@@ -115,6 +109,43 @@ struct ClipboardMenuView: View {
 
     private var emptyMode: EmptyClipboardMode {
         store.items.isEmpty ? .noHistory : .noResults
+    }
+
+    private func historyRow(for item: ClipboardItem) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                selectAndDismiss(item)
+            } label: {
+                ClipboardItemRow(item: item)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                store.remove(item)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
+            .help("Remover")
+            .opacity(hoveredItemID == item.id ? 1 : 0)
+            .allowsHitTesting(hoveredItemID == item.id)
+        }
+        .onHover { hovering in
+            hoveredItemID = hovering ? item.id : (hoveredItemID == item.id ? nil : hoveredItemID)
+        }
+        .contextMenu {
+            Button("Remover", role: .destructive) {
+                store.remove(item)
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button("Remover", role: .destructive) {
+                store.remove(item)
+            }
+        }
     }
 
     private func rowBackground(for item: ClipboardItem) -> Color {
