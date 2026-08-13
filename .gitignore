@@ -47,6 +47,10 @@ fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
 
+# Packaging output
+dist/
+*.dmg
+
 # Cursor / IDE
 .cursor/
 *.swp
