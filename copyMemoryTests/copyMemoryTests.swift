@@ -69,6 +69,22 @@ final class ClipboardStoreTests: XCTestCase {
         XCTAssertEqual(store.items.first?.text, "item-\(ClipboardStore.maxItems)")
     }
 
+    func testSimulatedOwnWriteDoesNotInsert() {
+        let store = makeIsolatedStore()
+        let monitor = ClipboardMonitor()
+        store.attach(monitor: monitor)
+
+        store.beginOwnContentWrite()
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("ignored", forType: .string)
+        monitor.syncChangeCount()
+        store.endOwnContentWrite()
+
+        XCTAssertTrue(store.items.isEmpty)
+        XCTAssertFalse(store.isWritingOwnContent)
+        XCTAssertFalse(monitor.isWritingOwnContent)
+    }
+
     func testSelectTextWritesStringToPasteboard() {
         let store = makeIsolatedStore()
         let monitor = ClipboardMonitor()
@@ -88,6 +104,7 @@ final class ClipboardStoreTests: XCTestCase {
         let store = makeIsolatedStore()
         let monitor = ClipboardMonitor()
         store.attach(monitor: monitor)
+
         let pngData = try makeMinimalPNGData()
         let item = ClipboardItem(
             id: UUID(),
@@ -103,22 +120,6 @@ final class ClipboardStoreTests: XCTestCase {
 
         XCTAssertTrue(NSPasteboard.general.canReadObject(forClasses: [NSImage.self], options: nil))
         XCTAssertEqual(store.items.count, 1)
-    }
-
-    func testSimulatedOwnWriteDoesNotInsert() {
-        let store = makeIsolatedStore()
-        let monitor = ClipboardMonitor()
-        store.attach(monitor: monitor)
-
-        store.beginOwnContentWrite()
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString("ignored", forType: .string)
-        monitor.syncChangeCount()
-        store.endOwnContentWrite()
-
-        XCTAssertTrue(store.items.isEmpty)
-        XCTAssertFalse(store.isWritingOwnContent)
-        XCTAssertFalse(monitor.isWritingOwnContent)
     }
 
     func testSelectDoesNotDuplicateHistoryAfterPoll() async throws {
@@ -225,6 +226,17 @@ final class ClipboardStoreTests: XCTestCase {
 
 @MainActor
 final class ClipboardMonitorTests: XCTestCase {
+    private var savedChangeCount: Int = 0
+
+    override func setUp() async throws {
+        savedChangeCount = NSPasteboard.general.changeCount
+    }
+
+    override func tearDown() async throws {
+        NSPasteboard.general.clearContents()
+        _ = NSPasteboard.general.changeCount
+    }
+
     func testMixedContentPrefersImage() throws {
         let monitor = ClipboardMonitor()
         let pasteboard = NSPasteboard.general
@@ -271,6 +283,40 @@ final class ClipboardMonitorTests: XCTestCase {
 }
 
 @MainActor
+final class ClipboardImageProcessorTests: XCTestCase {
+    func testSmallImageKeepsOriginalPayload() throws {
+        let pngData = try makeMinimalPNGData()
+        let image = try XCTUnwrap(NSImage(data: pngData))
+
+        let payload = ClipboardImageProcessor.reusablePayload(from: image, originalData: pngData)
+
+        XCTAssertEqual(payload, pngData)
+    }
+
+    func testLargeImagePayloadIsDownscaled() throws {
+        let pngData = try makePNGData(width: 3000, height: 2000)
+        let image = try XCTUnwrap(NSImage(data: pngData))
+
+        let payload = ClipboardImageProcessor.reusablePayload(from: image, originalData: pngData)
+        let storedImage = try XCTUnwrap(NSImage(data: payload))
+        let pixelSize = try XCTUnwrap(ClipboardImageProcessor.pixelSize(of: storedImage))
+
+        XCTAssertLessThanOrEqual(max(pixelSize.width, pixelSize.height), Int(ClipboardImageProcessor.maxPayloadSide))
+        XCTAssertNotNil(NSImage(data: payload), "re-copiar ainda deve produzir imagem utilizável")
+    }
+
+    func testThumbnailRespectsMaxSide() throws {
+        let pngData = try makePNGData(width: 1200, height: 800)
+        let image = try XCTUnwrap(NSImage(data: pngData))
+        let thumbnail = try XCTUnwrap(ClipboardImageProcessor.thumbnailPNG(from: image))
+        let thumbImage = try XCTUnwrap(NSImage(data: thumbnail))
+        let pixelSize = try XCTUnwrap(ClipboardImageProcessor.pixelSize(of: thumbImage))
+
+        XCTAssertLessThanOrEqual(max(pixelSize.width, pixelSize.height), Int(ClipboardImageProcessor.maxThumbnailSide))
+    }
+}
+
+@MainActor
 private func makeIsolatedStore() -> ClipboardStore {
     let directory = FileManager.default.temporaryDirectory
         .appendingPathComponent("cm-store-\(UUID().uuidString)", isDirectory: true)
@@ -312,6 +358,32 @@ private func makeMinimalPNGData() throws -> Data {
 
     guard let pngData = representation.representation(using: .png, properties: [:]) else {
         throw NSError(domain: "copyMemoryTests", code: 2)
+    }
+
+    return pngData
+}
+
+private func makePNGData(width: Int, height: Int) throws -> Data {
+    guard let representation = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: width,
+        pixelsHigh: height,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ) else {
+        throw NSError(domain: "copyMemoryTests", code: 3)
+    }
+
+    representation.setColor(.systemBlue, atX: 0, y: 0)
+    representation.setColor(.systemRed, atX: width - 1, y: height - 1)
+
+    guard let pngData = representation.representation(using: .png, properties: [:]) else {
+        throw NSError(domain: "copyMemoryTests", code: 4)
     }
 
     return pngData

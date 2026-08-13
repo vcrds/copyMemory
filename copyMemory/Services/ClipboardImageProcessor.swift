@@ -10,9 +10,29 @@ import Foundation
 
 enum ClipboardImageProcessor {
     static let maxThumbnailSide: CGFloat = 256
+    static let maxPayloadSide: CGFloat = 1920
+    static let maxRawPayloadBytes = 1_500_000
+    private static let jpegQuality: CGFloat = 0.82
 
     static func thumbnailPNG(from image: NSImage) -> Data? {
         scaledRepresentation(from: image, maxSide: maxThumbnailSide, using: .png)
+    }
+
+    /// Redimensiona e/ou comprime o payload reutilizável quando a captura é grande.
+    /// Imagens pequenas permanecem nos bytes originais (Cmd+V fiel).
+    static func reusablePayload(from image: NSImage, originalData: Data) -> Data {
+        guard let cgImage = cgImage(from: image) else { return originalData }
+
+        let width = CGFloat(cgImage.width)
+        let height = CGFloat(cgImage.height)
+        let longestSide = max(width, height)
+        let needsResize = longestSide > maxPayloadSide
+        let needsCompress = originalData.count > maxRawPayloadBytes
+        guard needsResize || needsCompress else { return originalData }
+
+        let targetSide = needsResize ? maxPayloadSide : longestSide
+        return scaledRepresentation(from: image, maxSide: targetSide, using: .jpeg)
+            ?? originalData
     }
 
     static func pixelSize(of image: NSImage) -> (width: Int, height: Int)? {
@@ -57,6 +77,13 @@ enum ClipboardImageProcessor {
         guard let scaledImage = context.makeImage() else { return nil }
 
         let representation = NSBitmapImageRep(cgImage: scaledImage)
+        if format == .jpeg {
+            return representation.representation(
+                using: .jpeg,
+                properties: [.compressionFactor: jpegQuality]
+            )
+        }
+
         return representation.representation(using: format, properties: [:])
     }
 

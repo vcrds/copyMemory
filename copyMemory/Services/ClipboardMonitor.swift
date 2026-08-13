@@ -116,14 +116,19 @@ final class ClipboardMonitor {
             return nil
         }
 
+        let storedData = ClipboardImageProcessor.reusablePayload(
+            from: payload.image,
+            originalData: payload.data
+        )
+
         return ClipboardItem(
             id: UUID(),
             type: .image,
             text: nil,
-            imageData: payload.data,
+            imageData: storedData,
             thumbnail: thumbnail,
             createdAt: Date(),
-            contentHash: ClipboardItemContentHash.forImageData(payload.data)
+            contentHash: ClipboardItemContentHash.forImageData(storedData)
         )
     }
 
