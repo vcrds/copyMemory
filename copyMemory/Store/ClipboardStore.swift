@@ -14,6 +14,24 @@ final class ClipboardStore {
     static let maxItems = 50
 
     private(set) var items: [ClipboardItem] = []
+    private(set) var isWritingOwnContent = false
+
+    private weak var monitor: ClipboardMonitor?
+
+    func attach(monitor: ClipboardMonitor) {
+        self.monitor = monitor
+    }
+
+    func beginOwnContentWrite() {
+        isWritingOwnContent = true
+        monitor?.isWritingOwnContent = true
+    }
+
+    func endOwnContentWrite() {
+        monitor?.syncChangeCount()
+        isWritingOwnContent = false
+        monitor?.isWritingOwnContent = false
+    }
 
     func insert(_ item: ClipboardItem) {
         if let latest = items.first, latest.contentHash == item.contentHash {

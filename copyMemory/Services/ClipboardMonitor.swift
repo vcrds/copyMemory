@@ -13,6 +13,8 @@ import Foundation
 final class ClipboardMonitor {
     let itemCaptured = PassthroughSubject<ClipboardItem, Never>()
 
+    var isWritingOwnContent = false
+
     private let pasteboard = NSPasteboard.general
     private var lastChangeCount: Int
     private var timerCancellable: AnyCancellable?
@@ -49,6 +51,10 @@ final class ClipboardMonitor {
         timerCancellable = nil
     }
 
+    func syncChangeCount() {
+        lastChangeCount = pasteboard.changeCount
+    }
+
     deinit {
         timerCancellable?.cancel()
     }
@@ -57,6 +63,12 @@ final class ClipboardMonitor {
     private func pollPasteboard() {
         let changeCount = pasteboard.changeCount
         guard changeCount != lastChangeCount else { return }
+
+        if isWritingOwnContent {
+            lastChangeCount = changeCount
+            return
+        }
+
         lastChangeCount = changeCount
 
         guard let item = captureItem(from: pasteboard) else { return }
