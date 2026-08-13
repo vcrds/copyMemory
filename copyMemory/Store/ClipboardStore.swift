@@ -59,7 +59,10 @@ final class ClipboardStore {
 
     func select(_ item: ClipboardItem) {
         guard canWrite(item) else { return }
+
+        beginOwnContentWrite()
         Self.writeToPasteboard(item)
+        endOwnContentWrite()
     }
 
     private func canWrite(_ item: ClipboardItem) -> Bool {

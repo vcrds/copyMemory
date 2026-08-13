@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Combine
 import XCTest
 @testable import copyMemory
 
@@ -70,16 +71,23 @@ final class ClipboardStoreTests: XCTestCase {
 
     func testSelectTextWritesStringToPasteboard() {
         let store = ClipboardStore()
+        let monitor = ClipboardMonitor()
+        store.attach(monitor: monitor)
+
         let item = makeTextItem("hello-select")
         store.insert(item)
         store.select(item)
 
         XCTAssertEqual(NSPasteboard.general.string(forType: .string), "hello-select")
         XCTAssertEqual(store.items.count, 1)
+        XCTAssertFalse(store.isWritingOwnContent)
+        XCTAssertFalse(monitor.isWritingOwnContent)
     }
 
     func testSelectImageWritesImageToPasteboard() throws {
         let store = ClipboardStore()
+        let monitor = ClipboardMonitor()
+        store.attach(monitor: monitor)
         let pngData = try makeMinimalPNGData()
         let item = ClipboardItem(
             id: UUID(),
@@ -95,6 +103,51 @@ final class ClipboardStoreTests: XCTestCase {
 
         XCTAssertTrue(NSPasteboard.general.canReadObject(forClasses: [NSImage.self], options: nil))
         XCTAssertEqual(store.items.count, 1)
+    }
+
+    func testSimulatedOwnWriteDoesNotInsert() {
+        let store = ClipboardStore()
+        let monitor = ClipboardMonitor()
+        store.attach(monitor: monitor)
+
+        store.beginOwnContentWrite()
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("ignored", forType: .string)
+        monitor.syncChangeCount()
+        store.endOwnContentWrite()
+
+        XCTAssertTrue(store.items.isEmpty)
+        XCTAssertFalse(store.isWritingOwnContent)
+        XCTAssertFalse(monitor.isWritingOwnContent)
+    }
+
+    func testSelectDoesNotDuplicateHistoryAfterPoll() async throws {
+        let store = ClipboardStore()
+        let monitor = ClipboardMonitor()
+        store.attach(monitor: monitor)
+
+        let unique = "select-own-write-\(UUID().uuidString)"
+        let older = makeTextItem(unique)
+        let newer = makeTextItem("newer-\(UUID().uuidString)")
+        store.insert(older)
+        store.insert(newer)
+
+        let subscription = monitor.itemCaptured.sink { store.insert($0) }
+        monitor.start()
+        defer {
+            subscription.cancel()
+            monitor.stop()
+        }
+
+        store.select(older)
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), unique)
+
+        try await Task.sleep(nanoseconds: 600_000_000)
+
+        XCTAssertEqual(store.items.filter { $0.text == unique }.count, 1)
+        XCTAssertEqual(store.items.first { $0.text == unique }?.id, older.id)
+        XCTAssertFalse(store.isWritingOwnContent)
+        XCTAssertFalse(monitor.isWritingOwnContent)
     }
 }
 
@@ -115,6 +168,33 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertNotNil(item?.imageData)
         XCTAssertNotNil(item?.thumbnail)
         XCTAssertNil(item?.text)
+    }
+
+    func testOwnWriteFlagSkipsCapturedItem() async throws {
+        let monitor = ClipboardMonitor()
+        var capturedItems: [ClipboardItem] = []
+        let subscription = monitor.itemCaptured.sink { capturedItems.append($0) }
+
+        monitor.start()
+        defer {
+            subscription.cancel()
+            monitor.stop()
+        }
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("first", forType: .string)
+        try await Task.sleep(nanoseconds: 600_000_000)
+
+        let capturedBeforeOwnWrite = capturedItems.count
+
+        monitor.isWritingOwnContent = true
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("second", forType: .string)
+        try await Task.sleep(nanoseconds: 600_000_000)
+
+        XCTAssertEqual(capturedItems.count, capturedBeforeOwnWrite)
+        monitor.isWritingOwnContent = false
+        monitor.syncChangeCount()
     }
 }
 
