@@ -17,6 +17,12 @@ final class ClipboardMonitor {
     private var lastChangeCount: Int
     private var timerCancellable: AnyCancellable?
 
+    private static let stringTypes: [NSPasteboard.PasteboardType] = [
+        .string,
+        NSPasteboard.PasteboardType("public.utf8-plain-text"),
+        NSPasteboard.PasteboardType("public.utf16-plain-text"),
+    ]
+
     init() {
         lastChangeCount = NSPasteboard.general.changeCount
     }
@@ -45,5 +51,36 @@ final class ClipboardMonitor {
         let changeCount = pasteboard.changeCount
         guard changeCount != lastChangeCount else { return }
         lastChangeCount = changeCount
+
+        guard let item = captureItem(from: pasteboard) else { return }
+        itemCaptured.send(item)
+    }
+
+    func captureItem(from pasteboard: NSPasteboard) -> ClipboardItem? {
+        captureTextItem(from: pasteboard)
+    }
+
+    private func captureTextItem(from pasteboard: NSPasteboard) -> ClipboardItem? {
+        guard let text = readString(from: pasteboard) else { return nil }
+
+        return ClipboardItem(
+            id: UUID(),
+            type: .text,
+            text: text,
+            imageData: nil,
+            thumbnail: nil,
+            createdAt: Date(),
+            contentHash: ClipboardItemContentHash.forText(text)
+        )
+    }
+
+    private func readString(from pasteboard: NSPasteboard) -> String? {
+        for type in Self.stringTypes {
+            if let string = pasteboard.string(forType: type), !string.isEmpty {
+                return string
+            }
+        }
+
+        return nil
     }
 }
