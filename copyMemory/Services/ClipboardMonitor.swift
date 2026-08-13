@@ -23,6 +23,11 @@ final class ClipboardMonitor {
         NSPasteboard.PasteboardType("public.utf16-plain-text"),
     ]
 
+    private static let imageTypes: [NSPasteboard.PasteboardType] = [
+        .png,
+        .tiff,
+    ]
+
     init() {
         lastChangeCount = NSPasteboard.general.changeCount
     }
@@ -57,7 +62,11 @@ final class ClipboardMonitor {
     }
 
     func captureItem(from pasteboard: NSPasteboard) -> ClipboardItem? {
-        captureTextItem(from: pasteboard)
+        if let textItem = captureTextItem(from: pasteboard) {
+            return textItem
+        }
+
+        return captureImageItem(from: pasteboard)
     }
 
     private func captureTextItem(from pasteboard: NSPasteboard) -> ClipboardItem? {
@@ -74,6 +83,23 @@ final class ClipboardMonitor {
         )
     }
 
+    private func captureImageItem(from pasteboard: NSPasteboard) -> ClipboardItem? {
+        guard let payload = readImagePayload(from: pasteboard),
+              let thumbnail = ClipboardImageProcessor.thumbnailPNG(from: payload.image) else {
+            return nil
+        }
+
+        return ClipboardItem(
+            id: UUID(),
+            type: .image,
+            text: nil,
+            imageData: payload.data,
+            thumbnail: thumbnail,
+            createdAt: Date(),
+            contentHash: ClipboardItemContentHash.forImageData(payload.data)
+        )
+    }
+
     private func readString(from pasteboard: NSPasteboard) -> String? {
         for type in Self.stringTypes {
             if let string = pasteboard.string(forType: type), !string.isEmpty {
@@ -82,5 +108,32 @@ final class ClipboardMonitor {
         }
 
         return nil
+    }
+
+    private func readImagePayload(from pasteboard: NSPasteboard) -> (data: Data, image: NSImage)? {
+        if let type = pasteboard.availableType(from: Self.imageTypes),
+           let data = pasteboard.data(forType: type),
+           !data.isEmpty,
+           let image = NSImage(data: data),
+           image.isValid {
+            return (data, image)
+        }
+
+        if let image = NSImage(pasteboard: pasteboard),
+           image.isValid,
+           let data = pngData(from: image) {
+            return (data, image)
+        }
+
+        return nil
+    }
+
+    private func pngData(from image: NSImage) -> Data? {
+        guard let tiff = image.tiffRepresentation,
+              let representation = NSBitmapImageRep(data: tiff) else {
+            return nil
+        }
+
+        return representation.representation(using: .png, properties: [:])
     }
 }
