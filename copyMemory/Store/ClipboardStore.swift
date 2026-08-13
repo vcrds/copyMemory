@@ -56,3 +56,20 @@ final class ClipboardStore {
         }
     }
 }
+
+#if DEBUG
+extension ClipboardStore {
+    static func previewPopulated() -> ClipboardStore {
+        let store = isolatedPreviewStore()
+        store.insert(ClipboardItemPreviewFactory.text("https://example.com/docs"))
+        store.insert(ClipboardItemPreviewFactory.text(String(repeating: "Código SwiftUI com tipografia densa e truncamento natural na largura do menu. ", count: 4)))
+        store.insert(ClipboardItemPreviewFactory.image())
+        return store
+    }
+
+    static func isolatedPreviewStore() -> ClipboardStore {
+        ClipboardStore()
+    }
+}
+#endif
+

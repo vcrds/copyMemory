@@ -32,3 +32,13 @@ struct EmptyClipboardView: View {
         }
     }
 }
+
+#Preview("Histórico vazio") {
+    EmptyClipboardView(mode: .noHistory)
+        .frame(width: 320)
+}
+
+#Preview("Sem resultados") {
+    EmptyClipboardView(mode: .noResults)
+        .frame(width: 320)
+}

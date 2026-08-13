@@ -60,3 +60,20 @@ struct ClipboardMenuView: View {
         store.items.isEmpty ? .noHistory : .noResults
     }
 }
+
+#Preview("Lista com itens") {
+    ClipboardMenuView()
+        .environment(ClipboardStore.previewPopulated())
+}
+
+#Preview("Histórico vazio") {
+    ClipboardMenuView()
+        .environment(ClipboardStore.isolatedPreviewStore())
+}
+
+#Preview("Busca sem resultados") {
+    let store = ClipboardStore.previewPopulated()
+    store.searchQuery = "zzzz"
+    return ClipboardMenuView()
+        .environment(store)
+}
