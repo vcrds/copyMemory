@@ -15,6 +15,7 @@ struct ClipboardMenuView: View {
     @State private var menuWindow: NSWindow?
     @State private var didSelect = false
     @State private var hoveredItemID: ClipboardItem.ID?
+    @State private var isConfirmingClear = false
 
     private let panelWidth: CGFloat = 320
     private let listHeight: CGFloat = 280
@@ -32,6 +33,11 @@ struct ClipboardMenuView: View {
             Divider()
 
             HStack {
+                Button("Limpar histórico") {
+                    isConfirmingClear = true
+                }
+                .disabled(store.items.isEmpty)
+
                 Spacer()
 
                 Button("Sair") {
@@ -40,6 +46,17 @@ struct ClipboardMenuView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            .confirmationDialog(
+                "Limpar todo o histórico?",
+                isPresented: $isConfirmingClear
+            ) {
+                Button("Limpar", role: .destructive) {
+                    store.clear()
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Esta ação vale só para a sessão atual.")
+            }
         }
         .frame(width: panelWidth)
         .background {

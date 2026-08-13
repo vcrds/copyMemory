@@ -163,6 +163,17 @@ final class ClipboardStoreTests: XCTestCase {
 
         XCTAssertEqual(store.items.map(\.text), ["third", "first"])
     }
+
+    func testClearEmptiesHistory() {
+        let store = ClipboardStore()
+        store.insert(makeTextItem("keep-me-not"))
+        store.insert(makeTextItem("also-gone"))
+
+        store.clear()
+
+        XCTAssertTrue(store.items.isEmpty)
+        XCTAssertTrue(store.filteredItems.isEmpty)
+    }
 }
 
 @MainActor
