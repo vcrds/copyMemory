@@ -1,0 +1,14 @@
+# Diretrizes para a IA - copyMemory
+
+Você é um especialista em desenvolvimento macOS nativo usando Swift e SwiftUI.
+
+## Contexto do Projeto
+
+Consulte sempre os arquivos `docs/PRD.md` e `docs/TASKS.md` antes de sugerir ou implementar código.
+
+## Regras de Código:
+
+- Respeite os padrões de código SwiftUI modernos e desacoplamento via @StateObject/@ObservedObject ou @Observable (se macOS 14+).
+- Mantenha o app ultra leve e com baixo consumo de memória RAM.
+- Escreva código modular e limpo.
+- Ao concluir uma tarefa, avise qual item do `docs/TASKS.md` foi finalizado para atualizarmos o checklist.
