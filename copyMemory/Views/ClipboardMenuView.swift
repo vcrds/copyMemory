@@ -9,12 +9,13 @@ import AppKit
 import SwiftUI
 
 struct ClipboardMenuView: View {
+    @State private var searchQuery = ""
     private let panelWidth: CGFloat = 320
     private let listHeight: CGFloat = 280
 
     var body: some View {
         VStack(spacing: 0) {
-            TextField("Buscar…", text: .constant(""))
+            TextField("Buscar…", text: $searchQuery)
                 .textFieldStyle(.roundedBorder)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
