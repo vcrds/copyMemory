@@ -62,11 +62,11 @@ final class ClipboardMonitor {
     }
 
     func captureItem(from pasteboard: NSPasteboard) -> ClipboardItem? {
-        if let textItem = captureTextItem(from: pasteboard) {
-            return textItem
+        if let imageItem = captureImageItem(from: pasteboard) {
+            return imageItem
         }
 
-        return captureImageItem(from: pasteboard)
+        return captureTextItem(from: pasteboard)
     }
 
     private func captureTextItem(from pasteboard: NSPasteboard) -> ClipboardItem? {
