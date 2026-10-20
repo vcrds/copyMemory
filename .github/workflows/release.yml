@@ -33,6 +33,9 @@ jobs:
 
       - name: Gerar DMG
         run: |
+          brew install pipx
+          pipx install dmgbuild
+          export PATH="${HOME}/.local/bin:${PATH}"
           APP="build/DerivedData/Build/Products/Release/copyMemory.app"
           codesign --force --deep --sign - "$APP"
           ./scripts/create-dmg.sh "$APP"

@@ -55,33 +55,38 @@ if [[ ! -d "$APP" ]]; then
 fi
 
 mkdir -p "$DIST"
+rm -f "$FINAL_DMG"
+
+# No GitHub Actions o Finder não aceita o AppleScript de layout.
+# O dmgbuild grava fundo, tamanho da janela e posição dos ícones no .DS_Store.
+if [[ -n "${CI:-}" ]]; then
+  export PATH="${HOME}/.local/bin:${PATH}"
+  if ! command -v dmgbuild >/dev/null; then
+    echo "dmgbuild não encontrado. No runner: brew install pipx && pipx install dmgbuild" >&2
+    exit 1
+  fi
+  echo "CI: gerando DMG com o layout de instalação…"
+  dmgbuild \
+    -s "$ROOT/packaging/dmg/settings.py" \
+    -D "app=${APP}" \
+    -D "background=${BACKGROUND}" \
+    "$VOLUME_NAME" \
+    "$FINAL_DMG"
+  echo
+  echo "DMG pronto: $FINAL_DMG"
+  exit 0
+fi
 
 if [[ -d "/Volumes/${VOLUME_NAME}" ]]; then
   hdiutil detach "/Volumes/${VOLUME_NAME}" -quiet || hdiutil detach "/Volumes/${VOLUME_NAME}" -force
 fi
 
-rm -rf "$STAGING" "$RW_DMG" "$FINAL_DMG"
+rm -rf "$STAGING" "$RW_DMG"
 mkdir -p "$STAGING/.background"
 
 ditto "$APP" "$STAGING/${APP_NAME}.app"
 ditto "$BACKGROUND" "$STAGING/.background/background.png"
 ln -s /Applications "$STAGING/Applications"
-
-# No GitHub Actions não há permissão para o Finder ajustar a janela.
-if [[ -n "${CI:-}" ]]; then
-  echo "CI: gerando DMG sem layout do Finder…"
-  hdiutil create \
-    -volname "$VOLUME_NAME" \
-    -srcfolder "$STAGING" \
-    -ov \
-    -format UDZO \
-    -imagekey zlib-level=9 \
-    "$FINAL_DMG" >/dev/null
-  rm -rf "$STAGING"
-  echo
-  echo "DMG pronto: $FINAL_DMG"
-  exit 0
-fi
 
 APP_SIZE_MB="$(du -sm "$STAGING" | awk '{print $1}')"
 DMG_SIZE_MB="$((APP_SIZE_MB + 20))"
