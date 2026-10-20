@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compilar Release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          xcodebuild \
+            -project copyMemory.xcodeproj \
+            -scheme copyMemory \
+            -configuration Release \
+            -destination "platform=macOS" \
+            -derivedDataPath build/DerivedData \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM="" \
+            build
+
+      - name: Gerar DMG
+        run: |
+          APP="build/DerivedData/Build/Products/Release/copyMemory.app"
+          codesign --force --deep --sign - "$APP"
+          ./scripts/create-dmg.sh "$APP"
+
+      - name: Publicar GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mv dist/copyMemory.dmg "dist/copyMemory-${VERSION}.dmg"
+          gh release create "${GITHUB_REF_NAME}" \
+            "dist/copyMemory-${VERSION}.dmg" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes

@@ -67,6 +67,22 @@ ditto "$APP" "$STAGING/${APP_NAME}.app"
 ditto "$BACKGROUND" "$STAGING/.background/background.png"
 ln -s /Applications "$STAGING/Applications"
 
+# No GitHub Actions não há permissão para o Finder ajustar a janela.
+if [[ -n "${CI:-}" ]]; then
+  echo "CI: gerando DMG sem layout do Finder…"
+  hdiutil create \
+    -volname "$VOLUME_NAME" \
+    -srcfolder "$STAGING" \
+    -ov \
+    -format UDZO \
+    -imagekey zlib-level=9 \
+    "$FINAL_DMG" >/dev/null
+  rm -rf "$STAGING"
+  echo
+  echo "DMG pronto: $FINAL_DMG"
+  exit 0
+fi
+
 APP_SIZE_MB="$(du -sm "$STAGING" | awk '{print $1}')"
 DMG_SIZE_MB="$((APP_SIZE_MB + 20))"
 
