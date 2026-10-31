@@ -40,8 +40,17 @@ struct ClipboardMenuView: View {
         }
         .onAppear {
             didSelect = false
+            isConfirmingClear = false
             isSearchFocused = true
             selectedItemID = store.filteredItems.first?.id
+        }
+        .onDisappear {
+            isConfirmingClear = false
+        }
+        .onKeyPress(.escape) {
+            guard isConfirmingClear else { return .ignored }
+            isConfirmingClear = false
+            return .handled
         }
         .onChange(of: store.filteredItems.map(\.id)) {
             let ids = store.filteredItems.map(\.id)
@@ -115,17 +124,10 @@ struct ClipboardMenuView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            HStack {
-                Button("Limpar histórico") {
-                    isConfirmingClear = true
-                }
-                .disabled(store.items.isEmpty)
-
-                Spacer()
-
-                Button("Sair") {
-                    NSApplication.shared.terminate(nil)
-                }
+            if isConfirmingClear {
+                clearConfirmation
+            } else {
+                historyActions
             }
 
             Text("Atalho \(HotKeyService.defaultShortcutDisplayName)")
@@ -135,21 +137,51 @@ struct ClipboardMenuView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .confirmationDialog(
-            "Limpar todo o histórico?",
-            isPresented: $isConfirmingClear
-        ) {
-            Button("Limpar", role: .destructive) {
-                store.clear()
+    }
+
+    private var historyActions: some View {
+        HStack {
+            Button("Limpar histórico") {
+                isConfirmingClear = true
             }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text(
-                store.persistsAcrossLaunches
-                    ? "Os itens salvos neste Mac também serão apagados."
-                    : "Esta ação vale só para a sessão atual."
-            )
+            .disabled(store.items.isEmpty)
+
+            Spacer()
+
+            Button("Sair") {
+                NSApplication.shared.terminate(nil)
+            }
         }
+    }
+
+    private var clearConfirmation: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Limpar todo o histórico?")
+                .font(.caption)
+
+            Text(clearConfirmationMessage)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            HStack {
+                Button("Cancelar") {
+                    isConfirmingClear = false
+                }
+
+                Spacer()
+
+                Button("Limpar", role: .destructive) {
+                    store.clear()
+                    isConfirmingClear = false
+                }
+            }
+        }
+    }
+
+    private var clearConfirmationMessage: String {
+        store.persistsAcrossLaunches
+            ? "Os itens salvos neste Mac também serão apagados."
+            : "Esta ação vale só para a sessão atual."
     }
 
     private func historyRow(for item: ClipboardItem) -> some View {
